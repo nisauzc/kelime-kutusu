@@ -1,5 +1,5 @@
 /* Çevrimdışı kullanım için basit önbellek */
-var CACHE = "kelime-kutusu-v1";
+var CACHE = "kelime-kutusu-v2";
 var FILES = [
   "./", "./index.html",
   "./css/style.css",

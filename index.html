@@ -87,7 +87,25 @@
       <div class="legend" id="statLegend"></div>
     </div>
     <div class="card pad">
+      <div class="track-top">
+        <h3>Öğrenme takibi</h3>
+        <div class="seg small" role="group" aria-label="Dönem">
+          <button type="button" data-range="week" aria-pressed="true">Hafta</button>
+          <button type="button" data-range="month" aria-pressed="false">Ay</button>
+        </div>
+      </div>
+      <div class="totals">
+        <div><b id="tkLearned">0</b><small>öğrenilen kelime</small></div>
+        <div><b id="tkAnswered">0</b><small>cevaplanan soru</small></div>
+        <div><b id="tkDays">0</b><small>çalışılan gün</small></div>
+      </div>
+      <p class="track-tip" id="trackTip">Bir güne dokununca o günün sayısını gösterir.</p>
+      <div class="track-bars" id="trackBars"></div>
+    </div>
+
+    <div class="card pad">
       <h3>Önümüzdeki 7 gün</h3>
+      <p class="hint">Tekrar sırası gelecek kelime sayısı.</p>
       <div class="forecast" id="forecast"></div>
     </div>
     <div class="card pad">
@@ -218,7 +236,11 @@
         <button id="dsReset" class="pill-btn" type="button">İlerlemeyi sıfırla</button>
         <button id="dsDelete" class="pill-btn danger" type="button">Desteyi sil</button>
       </div>
-      <input type="search" id="dsSearch" class="search" placeholder="Kelime ara">
+      <input type="search" id="dsSearch" class="search" placeholder="Kelime ara ya da grup adı yaz">
+      <div class="ds-tools">
+        <p class="hint" id="dsHint">Bildiğin kelimeye dokun, bir daha karşına çıkmasın.</p>
+        <button id="dsKnowAll" class="pill-btn" type="button">Görünenleri bildim say</button>
+      </div>
       <div id="dsWords" class="ds-words"></div>
     </div>
   </div>
