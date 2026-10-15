@@ -27,6 +27,7 @@
     decks.forEach(function (d) {
       d.cards.forEach(function (c) {
         var p = prog[c.id];
+        if (p && p.known) return;                 // "biliyorum" denmiş kelime
         var item = { card: c, deck: d };
         if (!p) { fresh.push(item); return; }
         if (p.stage < S.STAGE.REVIEW) { learning.push(item); return; }

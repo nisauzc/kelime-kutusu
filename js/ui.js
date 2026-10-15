@@ -14,6 +14,18 @@
   var sess = null;
   var draft = { type: "en-tr", cards: [] };
   var openDeckId = null;
+  var shownWords = [];
+  var trackRange = "week";
+
+  /* İlerlemeyi yaz; kelime ilk kez tekrar havuzuna girdiyse günlüğe işle */
+  function commit(cardId, next) {
+    var before = Store.prog(cardId);
+    if (!(before && before.grad) && S.isLearned(next)) {
+      next.grad = true;
+      Store.logLearned();
+    }
+    Store.setProg(cardId, next);
+  }
 
   /* ---------------- bildirim ---------------- */
   var toastTimer;
@@ -71,7 +83,7 @@
     $("#streakNum").textContent = st.streak.count;
     $("#cntNew").textContent = Math.max(0, Math.min(c.nw, (st.settings.newPerDay || 10) - st.daily.newDone));
     $("#cntDue").textContent = c.due;
-    $("#cntLearned").textContent = all.known;
+    $("#cntLearned").textContent = all.learned + all.marked;
 
     var picker = $("#deckPicker");
     if (!st.decks.length) {
@@ -112,7 +124,7 @@
     }
     list.innerHTML = st.decks.map(function (dk) {
       var c = Store.counts([dk]);
-      var pct = c.total ? Math.round((c.known / c.total) * 100) : 0;
+      var pct = c.total ? Math.round(((c.learned + c.marked) / c.total) * 100) : 0;
       var ja = St.isJa(dk);
       return '<div class="card deck-card" data-open="' + esc(dk.id) + '">' +
         '<span class="face' + (ja ? " ja" : "") + '">' + (ja ? "JA" : "EN") + "</span>" +
@@ -126,13 +138,17 @@
   function renderStats() {
     var st = Store.state;
     var c = Store.counts(st.decks);
-    var pct = c.total ? Math.round((c.known / c.total) * 100) : 0;
+    var bil = c.learned + c.marked;
+    var pct = c.total ? Math.round((bil / c.total) * 100) : 0;
     $("#ringPct").textContent = pct + "%";
     $("#ringFg").style.strokeDashoffset = String(327 - (327 * pct) / 100);
     $("#statLegend").innerHTML =
-      '<span><i style="background:var(--mint)"></i>' + c.known + " biliniyor</span>" +
-      '<span><i style="background:var(--accent-2)"></i>' + c.learning + " öğreniliyor</span>" +
+      '<span><i style="background:var(--mint)"></i>' + c.learned + " öğrenildi</span>" +
+      '<span><i style="background:var(--marked)"></i>' + c.marked + " zaten biliniyordu</span>" +
+      '<span><i style="background:var(--accent-2)"></i>' + c.learning + " çalışılıyor</span>" +
       '<span><i style="background:var(--line)"></i>' + c.nw + " yeni</span>";
+
+    renderTrack();
 
     var f = Store.forecast(7);
     var max = Math.max.apply(null, f.concat([1]));
@@ -146,12 +162,81 @@
 
     $("#statDecks").innerHTML = st.decks.length ? st.decks.map(function (dk) {
       var dc = Store.counts([dk]);
-      var p = dc.total ? Math.round((dc.known / dc.total) * 100) : 0;
+      var p = dc.total ? Math.round(((dc.learned + dc.marked) / dc.total) * 100) : 0;
       return '<div class="sd"><span class="nm">' + esc(dk.name) + "</span>" +
         '<span class="mini-bar" style="flex:0 0 90px"><i style="width:' + p + '%"></i></span>' +
         "<b>" + p + "%</b></div>";
     }).join("") : '<p class="hint">Deste yok.</p>';
   }
+
+
+  /* ---- haftalık / aylık takip çizelgesi ---- */
+  var GUN = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
+  var AY = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+
+  function setRange(r) { trackRange = r; renderTrack(); }
+  UI.setRange = setRange;
+
+  function renderTrack() {
+    var week = trackRange === "week";
+    var rows = Store.historyRange(week ? 7 : 30);
+    var max = rows.reduce(function (m, r) { return Math.max(m, r.learned); }, 0);
+    var scale = Math.max(max, 1);
+
+    var sumL = 0, sumA = 0, gun = 0;
+    rows.forEach(function (r) {
+      sumL += r.learned; sumA += r.answered;
+      if (r.answered > 0) gun++;
+    });
+    $("#tkLearned").textContent = sumL;
+    $("#tkAnswered").textContent = sumA;
+    $("#tkDays").textContent = gun;
+
+    d.querySelectorAll("[data-range]").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.range === trackRange));
+    });
+
+    $("#trackBars").className = "track-bars" + (week ? "" : " dense");
+    $("#trackBars").innerHTML = rows.map(function (r, i) {
+      var h = Math.round((r.learned / scale) * 100);
+      var son = i === rows.length - 1;
+      // ay görünümünde bugünden geriye yedişer gün etiketle, böylece çakışma olmaz
+      var etiket = week
+        ? GUN[r.date.getDay()]
+        : ((rows.length - 1 - i) % 7 === 0 ? String(r.date.getDate()) : "");
+      return '<button type="button" class="tb' + (son ? " today" : "") +
+        (r.learned ? "" : " zero") + '" data-i="' + i + '" ' +
+        'aria-label="' + esc(gunAdi(r.date)) + ": " + r.learned + ' kelime">' +
+        '<span class="plot"><span class="col" style="height:' +
+        (r.learned ? Math.max(h, 4) : 0) + '%">' +
+        (week && r.learned ? "<em>" + r.learned + "</em>" : "") +
+        '<i></i></span></span>' +
+        "<small>" + esc(etiket) + "</small></button>";
+    }).join("");
+
+    var enIyi = rows.reduce(function (a, b) { return b.learned > a.learned ? b : a; }, rows[0]);
+    $("#trackTip").textContent = sumL
+      ? (week ? "Bu hafta" : "Son 30 gün") + " toplam " + sumL + " kelime. En iyi gün: " +
+        gunAdi(enIyi.date) + ", " + enIyi.learned + " kelime."
+      : "Henüz kayıt yok. Bir oturum bitirince buraya düşmeye başlar.";
+    trackSel = -1;
+  }
+
+  var trackSel = -1;
+  function gunAdi(dt) {
+    return dt.getDate() + " " + AY[dt.getMonth()] + " " + GUN[dt.getDay()];
+  }
+
+  /* bir sütuna dokununca o günün sayısı */
+  function pickBar(i) {
+    var rows = Store.historyRange(trackRange === "week" ? 7 : 30);
+    var r = rows[i];
+    if (!r) return;
+    d.querySelectorAll(".tb").forEach(function (b, n) { b.classList.toggle("on", n === i); });
+    $("#trackTip").textContent = gunAdi(r.date) + ": " + r.learned + " kelime öğrenildi, " +
+      r.answered + " soru cevaplandı.";
+  }
+  UI.pickBar = pickBar;
 
   function renderSettings() {
     var s = Store.state.settings;
@@ -254,17 +339,58 @@
       if (!q) return true;
       return St.normalize(c.term).indexOf(q) >= 0 ||
         St.normalize(c.meaning).indexOf(q) >= 0 ||
-        St.normalize(c.reading).indexOf(q) >= 0;
+        St.normalize(c.reading).indexOf(q) >= 0 ||
+        St.normalize(c.group).indexOf(q) >= 0;
     });
+    shownWords = rows;
+    var isaretli = rows.filter(function (c) { return S.isMarked(Store.prog(c.id)); }).length;
+    $("#dsHint").textContent = rows.length === dk.cards.length
+      ? "Bildiğin kelimeye dokun, bir daha karşına çıkmasın."
+      : rows.length + " kelime görünüyor, " + isaretli + " tanesi işaretli.";
+    $("#dsKnowAll").hidden = rows.length === 0;
+    $("#dsKnowAll").textContent = rows.length === dk.cards.length
+      ? "Tümünü bildim say" : "Görünenleri bildim say";
+
     $("#dsWords").innerHTML = rows.slice(0, 400).map(function (c) {
       var p = Store.prog(c.id);
-      var cls = S.isKnown(p) ? "known" : (p ? "learning" : "");
-      return '<div class="dw"><span class="s ' + cls + '"></span>' +
+      var cls = S.isMarked(p) ? "marked" : S.isLearned(p) ? "known" : (p ? "learning" : "");
+      return '<button type="button" class="dw ' + cls + '" data-card="' + esc(c.id) + '" ' +
+        'aria-pressed="' + (S.isMarked(p) ? "true" : "false") + '">' +
+        '<span class="s"></span>' +
         '<span class="t' + (ja ? " jp" : "") + '">' + esc(c.term) + "</span>" +
-        '<span class="m">' + esc(c.meaning) + (c.reading ? " · " + esc(c.reading) : "") + "</span></div>";
+        '<span class="m">' + esc(c.meaning) + (c.reading ? " · " + esc(c.reading) : "") + "</span>" +
+        '<span class="tick">' + (S.isMarked(p) ? "&#10003;" : "") + "</span></button>";
     }).join("") || '<p class="hint">Eşleşen kelime yok.</p>';
+    if (rows.length > 400) {
+      $("#dsWords").insertAdjacentHTML("beforeend",
+        '<p class="hint">İlk 400 kelime gösteriliyor, aramayı daraltabilirsin.</p>');
+    }
   }
   UI.drawWords = drawWords;
+
+  /* bir kelimeyi bildim / bilmiyorum arasında çevirir */
+  function toggleKnown(cardId) {
+    var p = Store.prog(cardId);
+    if (S.isMarked(p)) Store.unmarkKnown(cardId);
+    else Store.markKnown(cardId);
+    drawWords($("#dsSearch").value);
+    render();
+  }
+  UI.toggleKnown = toggleKnown;
+
+  /* listede görünen bütün kelimeleri bildim say */
+  function knowAllShown() {
+    var n = 0;
+    shownWords.forEach(function (c) {
+      if (S.isMarked(Store.prog(c.id))) return;
+      Store.markKnown(c.id);
+      n++;
+    });
+    drawWords($("#dsSearch").value);
+    render();
+    toast(n ? n + " kelime bildim olarak işaretlendi" : "Hepsi zaten işaretliydi");
+  }
+  UI.knowAllShown = knowAllShown;
 
   /* ---------------- çalışma oturumu ---------------- */
   function startSession() {
@@ -343,13 +469,18 @@
         '<div class="mean">' + esc(c.meaning) + "</div>" +
         (c.group ? '<div class="grp">' + esc(c.group) + "</div>" : "") +
         "</div>" +
-        '<div class="next-btn"><button class="big-btn" id="goNext" type="button">Anladım</button></div>';
+        '<div class="next-btn">' +
+        '<button class="big-btn" id="goNext" type="button">Anladım, çalışalım</button>' +
+        '<button class="ghost-btn" id="knowBtn" type="button">Bunu zaten biliyorum</button>' +
+        "</div>";
       $("#goNext").onclick = function () {
         markNew(q.item);
-        Store.setProg(c.id, S.advance(Store.prog(c.id) || S.fresh(), true));
+        Store.logAnswer();
+        commit(c.id, S.advance(Store.prog(c.id) || S.fresh(), true));
         keepLearning(q.item);
         sess.idx++; nextCard();
       };
+      $("#knowBtn").onclick = function () { markNew(q.item); knowNow(q.item); };
       return;
     }
 
@@ -418,12 +549,16 @@
       st.querySelectorAll(".grade button").forEach(function (b) {
         b.onclick = function () {
           var g = +b.dataset.g;
-          Store.setProg(c.id, S.grade(Store.prog(c.id) || S.fresh(), g));
+          Store.logAnswer();
+          commit(c.id, S.grade(Store.prog(c.id) || S.fresh(), g));
           if (g === 1) { sess.wrong++; requeue(q.item); } else sess.right++;
           beep(g !== 1);
           sess.idx++; nextCard();
         };
       });
+      st.insertAdjacentHTML("beforeend",
+        '<button class="ghost-btn wide" id="knowBtn2" type="button">Bunu biliyorum, bir daha sorma</button>');
+      $("#knowBtn2").onclick = function () { knowNow(q.item); };
     };
   }
 
@@ -431,7 +566,8 @@
     markNew(q.item);
     beep(ok);
     if (ok) sess.right++; else sess.wrong++;
-    Store.setProg(q.item.card.id, S.advance(Store.prog(q.item.card.id) || S.fresh(), ok));
+    Store.logAnswer();
+    commit(q.item.card.id, S.advance(Store.prog(q.item.card.id) || S.fresh(), ok));
     keepLearning(q.item);
     var fb = $("#fb");
     fb.className = "feedback " + (ok ? "ok" : "no");
@@ -443,6 +579,21 @@
     btn.querySelector("button").onclick = function () { sess.idx++; nextCard(); };
     btn.querySelector("button").focus();
     $("#stage").appendChild(btn);
+  }
+
+  /* oturum sırasında "bunu biliyorum": kelimeyi işaretle ve kuyruktan çıkar */
+  function knowNow(item) {
+    Store.markKnown(item.card.id);
+    dropFromQueue(item.card.id);
+    toast("Bildin olarak işaretlendi");
+    sess.idx++;
+    nextCard();
+  }
+
+  function dropFromQueue(cardId) {
+    for (var i = sess.queue.length - 1; i > sess.idx; i--) {
+      if (sess.queue[i].card.id === cardId) sess.queue.splice(i, 1);
+    }
   }
 
   /* kartı birkaç soru sonra yeniden kuyruğa sok */

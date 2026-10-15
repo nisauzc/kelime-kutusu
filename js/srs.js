@@ -17,11 +17,31 @@
   }
 
   function isNew(p) { return !p || p.reps === 0 && p.stage < STAGE.REVIEW; }
-  function isLearning(p) { return p && p.stage < STAGE.REVIEW && p.seen > 0; }
-  function isKnown(p) { return p && p.stage >= STAGE.REVIEW && p.interval >= 1; }
+  function isLearning(p) { return !!(p && !p.known && p.stage < STAGE.REVIEW && p.seen > 0); }
+
+  /* kullanıcının "biliyorum" dediği kelime: çalışmaya hiç girmez */
+  function isMarked(p) { return !!(p && p.known); }
+  /* uygulamada aşamaları bitirip tekrar havuzuna giren kelime */
+  function isLearned(p) { return !!(p && !p.known && p.stage >= STAGE.REVIEW && p.interval >= 1); }
+
+  function markKnown(p) {
+    p = p || fresh();
+    p.known = true;
+    p.stage = STAGE.REVIEW;
+    p.interval = 0;
+    p.due = 0;
+    return p;
+  }
+
+  function unmark(p) {
+    var f = fresh();
+    if (p && p.seen) f.seen = p.seen;
+    return f;
+  }
 
   function isDue(p, now) {
     if (!p) return false;
+    if (p.known) return false;
     if (p.stage < STAGE.REVIEW) return true;
     return p.due <= now;
   }
@@ -90,7 +110,8 @@
 
   w.SRS = {
     DAY: DAY, STAGE: STAGE, fresh: fresh, advance: advance, grade: grade,
-    isNew: isNew, isLearning: isLearning, isKnown: isKnown, isDue: isDue,
+    isNew: isNew, isLearning: isLearning, isLearned: isLearned, isDue: isDue,
+    isMarked: isMarked, markKnown: markKnown, unmark: unmark,
     startOfDay: startOfDay, nextLabel: nextLabel
   };
 })(window);

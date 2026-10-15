@@ -86,6 +86,20 @@
     $("#dsClose").onclick = function () { $("#deckSheet").hidden = true; };
     $("#deckSheet").onclick = function (e) { if (e.target === $("#deckSheet")) $("#deckSheet").hidden = true; };
     $("#dsSearch").oninput = function () { UI.drawWords(this.value); };
+    $("#dsWords").onclick = function (e) {
+      var b = e.target.closest("[data-card]");
+      if (b) UI.toggleKnown(b.dataset.card);
+    };
+    $("#dsKnowAll").onclick = UI.knowAllShown;
+
+    /* takip çizelgesi */
+    d.querySelectorAll("[data-range]").forEach(function (b) {
+      b.onclick = function () { UI.setRange(b.dataset.range); };
+    });
+    $("#trackBars").onclick = function (e) {
+      var b = e.target.closest(".tb");
+      if (b) UI.pickBar(+b.dataset.i);
+    };
     $("#dsRename").onclick = function () {
       var dk = Store.deck(UI.currentDeck());
       if (!dk) return;

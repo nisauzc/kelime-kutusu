@@ -10,6 +10,7 @@
     settings: { newPerDay: 10, sessionSize: 30, typing: true, sound: true, theme: null, selected: [] },
     daily: { date: "", newDone: 0 },
     streak: { count: 0, last: "" },
+    history: {},
     seededStarter: false
   };
 
@@ -87,6 +88,57 @@
   function prog(cardId) { return state.prog[cardId]; }
   function setProg(cardId, p) { state.prog[cardId] = p; save(); }
 
+  /* ---- günlük geçmiş ---- */
+  function day(key) {
+    if (!state.history[key]) state.history[key] = { learned: 0, answered: 0 };
+    return state.history[key];
+  }
+  function logAnswer() { day(today()).answered++; save(); }
+  function logLearned() { day(today()).learned++; save(); }
+
+  function dateKey(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
+      "-" + String(d.getDate()).padStart(2, "0");
+  }
+
+  /* Son n günün kaydı, en eskiden bugüne */
+  function historyRange(days) {
+    var out = [], now = new Date();
+    for (var i = days - 1; i >= 0; i--) {
+      var d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      var k = dateKey(d);
+      var rec = state.history[k] || { learned: 0, answered: 0 };
+      out.push({ date: d, key: k, learned: rec.learned || 0, answered: rec.answered || 0 });
+    }
+    return out;
+  }
+
+  /* ---- biliyorum işareti ---- */
+  function markKnown(cardId) {
+    state.prog[cardId] = w.SRS.markKnown(state.prog[cardId]);
+    save();
+  }
+  function unmarkKnown(cardId) {
+    var p = state.prog[cardId];
+    if (!p) return;
+    if (p.known) delete state.prog[cardId];
+    else state.prog[cardId] = w.SRS.unmark(p);
+    save();
+  }
+  function markGroupKnown(deckId, group) {
+    var dk = deck(deckId);
+    if (!dk) return 0;
+    var n = 0;
+    dk.cards.forEach(function (c) {
+      if (group && c.group !== group) return;
+      if (w.SRS.isMarked(state.prog[c.id])) return;
+      state.prog[c.id] = w.SRS.markKnown(state.prog[c.id]);
+      n++;
+    });
+    save();
+    return n;
+  }
+
   function selectedDecks() {
     var sel = state.settings.selected.filter(function (id) { return deck(id); });
     if (!sel.length && state.decks.length) sel = [state.decks[0].id];
@@ -102,13 +154,15 @@
   }
 
   function counts(decks) {
-    var now = Date.now(), out = { nw: 0, due: 0, learning: 0, known: 0, total: 0 };
+    var now = Date.now();
+    var out = { nw: 0, due: 0, learning: 0, learned: 0, marked: 0, total: 0 };
     (decks || state.decks).forEach(function (d) {
       d.cards.forEach(function (c) {
         out.total++;
         var p = state.prog[c.id];
         if (!p) { out.nw++; return; }
-        if (w.SRS.isKnown(p)) out.known++;
+        if (w.SRS.isMarked(p)) { out.marked++; return; }
+        if (w.SRS.isLearned(p)) out.learned++;
         else out.learning++;
         if (w.SRS.isDue(p, now)) out.due++;
       });
@@ -121,7 +175,7 @@
     for (var i = 0; i < days; i++) out.push(0);
     Object.keys(state.prog).forEach(function (k) {
       var p = state.prog[k];
-      if (!p || p.stage < w.SRS.STAGE.REVIEW) return;
+      if (!p || p.known || p.stage < w.SRS.STAGE.REVIEW) return;
       var diff = Math.round((w.SRS.startOfDay(p.due) - base) / w.SRS.DAY);
       if (diff < 0) diff = 0;
       if (diff < days) out[diff]++;
@@ -151,6 +205,8 @@
     addDeck: addDeck, deck: deck, removeDeck: removeDeck, resetDeck: resetDeck,
     prog: prog, setProg: setProg, selectedDecks: selectedDecks, toggleSelected: toggleSelected,
     counts: counts, forecast: forecast,
+    logAnswer: logAnswer, logLearned: logLearned, historyRange: historyRange,
+    markKnown: markKnown, unmarkKnown: unmarkKnown, markGroupKnown: markGroupKnown,
     exportJSON: exportJSON, importJSON: importJSON, wipe: wipe
   };
 })(window);
