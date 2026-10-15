@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kelime Kutusu</title>
+<meta name="description" content="Kendi kelime listelerini yükleyip aralıklı tekrarla çalıştığın küçük bir uygulama.">
+<meta name="theme-color" content="#6d5ae0">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Nunito:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 40 40" width="30" height="30">
+        <rect x="4" y="11" width="32" height="25" rx="7" fill="var(--accent)"/>
+        <rect x="4" y="11" width="32" height="8" rx="4" fill="var(--accent-2)"/>
+        <circle cx="15" cy="26" r="2.4" fill="#fff"/>
+        <circle cx="25" cy="26" r="2.4" fill="#fff"/>
+        <path d="M16 31 q4 3 8 0" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M20 11 V4" stroke="var(--accent-2)" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="20" cy="3.5" r="2.5" fill="var(--accent-2)"/>
+      </svg>
+    </span>
+    <h1>Kelime Kutusu</h1>
+  </div>
+  <button id="themeBtn" class="icon-btn" type="button" aria-label="Temayı değiştir">
+    <span id="themeIcon">&#9789;</span>
+  </button>
+</header>
+
+<main id="main">
+
+  <!-- ÇALIŞ -->
+  <section id="view-study" class="view">
+    <div class="hero card">
+      <div class="hero-text">
+        <p class="hello" id="hello">Bugün ne çalışıyoruz?</p>
+        <p class="sub" id="todaySub">Önce bir deste ekle, sonra başlayalım.</p>
+      </div>
+      <div class="streak" id="streakBox" title="Üst üste çalıştığın gün">
+        <span class="flame">&#9679;</span>
+        <b id="streakNum">0</b>
+        <small>gün</small>
+      </div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat"><b id="cntNew">0</b><small>yeni</small></div>
+      <div class="stat"><b id="cntDue">0</b><small>tekrar</small></div>
+      <div class="stat"><b id="cntLearned">0</b><small>öğrenilen</small></div>
+    </div>
+
+    <div id="deckPicker" class="deck-picker"></div>
+
+    <button id="startBtn" class="big-btn" type="button">Çalışmaya başla</button>
+    <p id="startHint" class="hint"></p>
+  </section>
+
+  <!-- DESTELER -->
+  <section id="view-decks" class="view" hidden>
+    <div class="view-head">
+      <h2>Desteler</h2>
+      <button id="newDeckBtn" class="pill-btn" type="button">+ Yeni deste</button>
+    </div>
+    <div id="deckList" class="deck-list"></div>
+  </section>
+
+  <!-- İSTATİSTİK -->
+  <section id="view-stats" class="view" hidden>
+    <div class="view-head"><h2>Durum</h2></div>
+    <div class="card pad">
+      <div class="ring-wrap">
+        <svg class="ring" viewBox="0 0 120 120" width="130" height="130" aria-hidden="true">
+          <circle cx="60" cy="60" r="52" class="ring-bg"/>
+          <circle cx="60" cy="60" r="52" class="ring-fg" id="ringFg"/>
+        </svg>
+        <div class="ring-mid"><b id="ringPct">0%</b><small>öğrenildi</small></div>
+      </div>
+      <div class="legend" id="statLegend"></div>
+    </div>
+    <div class="card pad">
+      <h3>Önümüzdeki 7 gün</h3>
+      <div class="forecast" id="forecast"></div>
+    </div>
+    <div class="card pad">
+      <h3>Desteler</h3>
+      <div id="statDecks" class="stat-decks"></div>
+    </div>
+  </section>
+
+  <!-- AYARLAR -->
+  <section id="view-settings" class="view" hidden>
+    <div class="view-head"><h2>Ayarlar</h2></div>
+
+    <div class="card pad">
+      <label class="field">
+        <span>Günde en fazla yeni kelime</span>
+        <input type="number" id="setNew" min="1" max="100" step="1">
+      </label>
+      <label class="field">
+        <span>Bir oturumdaki soru sayısı</span>
+        <input type="number" id="setSession" min="5" max="200" step="5">
+      </label>
+      <label class="switch">
+        <input type="checkbox" id="setTyping">
+        <span>Yazarak cevaplama adımı olsun</span>
+      </label>
+      <label class="switch">
+        <input type="checkbox" id="setSound">
+        <span>Doğru/yanlış sesi</span>
+      </label>
+    </div>
+
+    <div class="card pad">
+      <h3>Yedek</h3>
+      <p class="hint">İlerlemen bu tarayıcıda saklanıyor. Başka bir cihaza geçerken yedek al.</p>
+      <div class="btn-row">
+        <button id="exportBtn" class="pill-btn" type="button">Yedeği indir</button>
+        <label class="pill-btn file-label">Yedeği yükle<input type="file" id="importFile" accept=".json" hidden></label>
+      </div>
+    </div>
+
+    <div class="card pad danger-zone">
+      <h3>Sıfırlama</h3>
+      <p class="hint">Bütün desteleri ve ilerlemeyi siler.</p>
+      <button id="wipeBtn" class="pill-btn danger" type="button">Her şeyi sil</button>
+      <span id="wipeConfirm" class="confirm" hidden>
+        Emin misin?
+        <button id="wipeYes" class="pill-btn danger" type="button">Sil</button>
+        <button id="wipeNo" class="pill-btn" type="button">Vazgeç</button>
+      </span>
+    </div>
+
+    <p class="version">Kelime Kutusu · <span id="verText">v1.0</span></p>
+  </section>
+
+</main>
+
+<nav class="tabbar" id="tabbar">
+  <button type="button" data-view="study" class="tab active"><span>&#9733;</span>Çalış</button>
+  <button type="button" data-view="decks" class="tab"><span>&#9638;</span>Desteler</button>
+  <button type="button" data-view="stats" class="tab"><span>&#9680;</span>Durum</button>
+  <button type="button" data-view="settings" class="tab"><span>&#9881;</span>Ayarlar</button>
+</nav>
+
+<!-- ÇALIŞMA EKRANI -->
+<div id="session" class="session" hidden>
+  <div class="session-top">
+    <button id="quitBtn" class="icon-btn" type="button" aria-label="Çalışmayı bitir">&#10005;</button>
+    <div class="progress"><i id="sessionBar"></i></div>
+    <span class="session-count" id="sessionCount">0/0</span>
+  </div>
+  <div id="stage" class="stage"></div>
+</div>
+
+<!-- DESTE EKLEME -->
+<div id="sheet" class="sheet" hidden>
+  <div class="sheet-card">
+    <div class="sheet-head">
+      <h2 id="sheetTitle">Yeni deste</h2>
+      <button id="sheetClose" class="icon-btn" type="button" aria-label="Kapat">&#10005;</button>
+    </div>
+    <div class="sheet-body">
+      <label class="field">
+        <span>Deste adı</span>
+        <input type="text" id="deckName" placeholder="Howl B1" autocomplete="off">
+      </label>
+
+      <span class="field-label">Deste türü</span>
+      <div class="chips" id="typeChips">
+        <button type="button" class="chip active" data-type="en-tr">İngilizce → Türkçe</button>
+        <button type="button" class="chip" data-type="ja-tr">Japonca → Türkçe</button>
+        <button type="button" class="chip" data-type="ja-en">Japonca → İngilizce</button>
+      </div>
+
+      <div class="csv-help">
+        <b>CSV düzeni</b>
+        <p id="csvCols">kelime , anlam , telaffuz</p>
+        <p class="hint">Üçüncü sütun isteğe bağlı. Dördüncü sütuna grup adı yazarsan desteler grup grup ayrılır. Ayraç olarak virgül, noktalı virgül veya sekme olabilir. Başlık satırı varsa kendisi anlar.</p>
+      </div>
+
+      <div class="btn-row">
+        <label class="pill-btn file-label">CSV dosyası seç<input type="file" id="csvFile" accept=".csv,.txt,.tsv" hidden></label>
+        <button id="pasteToggle" class="pill-btn" type="button">Elle yapıştır</button>
+      </div>
+
+      <textarea id="pasteArea" class="paste" rows="7" placeholder="shelf, raf, /ŞELF/&#10;drawer, çekmece, /DROR/" hidden></textarea>
+
+      <div id="previewBox" class="preview" hidden>
+        <b id="previewCount"></b>
+        <table id="previewTable"></table>
+      </div>
+
+      <p id="sheetErr" class="err" hidden></p>
+      <button id="saveDeckBtn" class="big-btn" type="button" disabled>Desteyi kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- DESTE DETAY -->
+<div id="deckSheet" class="sheet" hidden>
+  <div class="sheet-card">
+    <div class="sheet-head">
+      <h2 id="dsTitle">Deste</h2>
+      <button id="dsClose" class="icon-btn" type="button" aria-label="Kapat">&#10005;</button>
+    </div>
+    <div class="sheet-body">
+      <div class="btn-row">
+        <button id="dsRename" class="pill-btn" type="button">Adını değiştir</button>
+        <button id="dsReset" class="pill-btn" type="button">İlerlemeyi sıfırla</button>
+        <button id="dsDelete" class="pill-btn danger" type="button">Desteyi sil</button>
+      </div>
+      <input type="search" id="dsSearch" class="search" placeholder="Kelime ara">
+      <div id="dsWords" class="ds-words"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="js/csv.js"></script>
+<script src="js/srs.js"></script>
+<script src="js/store.js"></script>
+<script src="data/starter.js"></script>
+<script src="js/study.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
