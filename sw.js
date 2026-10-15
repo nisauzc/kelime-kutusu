@@ -1,5 +1,5 @@
 /* Çevrimdışı kullanım için basit önbellek */
-var CACHE = "kelime-kutusu-v2";
+var CACHE = "kelime-kutusu-v3";
 var FILES = [
   "./", "./index.html",
   "./css/style.css",
@@ -12,7 +12,8 @@ var FILES = [
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) {
     return Promise.all(FILES.map(function (f) {
-      return c.add(f).catch(function () {});
+      // cache:"reload" tarayıcı önbelleğini atlar, böylece eski dosya saklanmaz
+      return c.add(new Request(f, { cache: "reload" })).catch(function () {});
     }));
   }).then(function () { return self.skipWaiting(); }));
 });
@@ -30,15 +31,16 @@ self.addEventListener("fetch", function (e) {
   if (req.method !== "GET") return;
   var url = new URL(req.url);
   if (url.origin !== location.origin) return;   // yazı tipleri ağdan gelsin
+  /* Önce ağ, olmazsa önbellek: çevrimiçiyken her zaman güncel sürüm gelir,
+     çevrimdışıyken uygulama yine açılır. */
   e.respondWith(
-    caches.match(req).then(function (hit) {
-      if (hit) return hit;
-      return fetch(req).then(function (res) {
-        var copy = res.clone();
-        caches.open(CACHE).then(function (c) { c.put(req, copy); }).catch(function () {});
-        return res;
-      }).catch(function () {
-        return caches.match("./index.html");
+    fetch(req).then(function (res) {
+      var copy = res.clone();
+      caches.open(CACHE).then(function (c) { c.put(req, copy); }).catch(function () {});
+      return res;
+    }).catch(function () {
+      return caches.match(req).then(function (hit) {
+        return hit || caches.match("./index.html");
       });
     })
   );
