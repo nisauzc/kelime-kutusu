@@ -480,7 +480,8 @@
         keepLearning(q.item);
         sess.idx++; nextCard();
       };
-      $("#knowBtn").onclick = function () { markNew(q.item); knowNow(q.item); };
+      // "zaten biliyorum" günlük yeni kelime hakkından düşmez
+      $("#knowBtn").onclick = function () { knowNow(q.item); };
       return;
     }
 
